@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PULSE · 2 Picks</title>
+<style>
+:root{
+  --bg:#0b0e14; --surface:#141a24; --line:#1e2531;
+  --text:#e8ecf3; --muted:#8a93a6; --accent:#7c6cf0;
+  --win:#34d399; --lose:#f87171; --mid:#fbbf24;
+  color-scheme: dark;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:-apple-system,"Inter",system-ui,sans-serif;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:calc(24px + env(safe-area-inset-bottom,0px));
+  min-height:100%;
+}
+header{
+  position:sticky; top:0; z-index:10;
+  background:rgba(11,14,20,.92); backdrop-filter:blur(10px);
+  padding:16px 18px 12px; border-bottom:1px solid var(--line);
+}
+header h1{font-size:19px}
+header h1 span{color:var(--accent)}
+header p{color:var(--muted); font-size:13px; margin-top:2px}
+main{padding:14px 16px; max-width:480px; margin:0 auto}
+.card{
+  background:var(--surface); border:1px solid var(--line);
+  border-radius:16px; padding:16px; margin-bottom:16px;
+}
+.top{display:flex; justify-content:space-between; align-items:center; margin-bottom:10px}
+.league{color:var(--muted); font-size:12px}
+.badge{font-size:11px; font-weight:600; padding:4px 10px; border-radius:20px; background:rgba(52,211,153,.15); color:var(--win)}
+.teams{font-size:17px; font-weight:600; margin-bottom:4px}
+.vs{color:var(--muted); font-weight:400; margin:0 6px}
+.when{font-size:12px; color:var(--muted); margin-bottom:14px}
+.market{border-top:1px solid var(--line); padding:10px 0}
+.market:first-of-type{border-top:none; padding-top:0}
+.mtitle{font-size:11px; color:var(--muted); margin-bottom:6px}
+.opts{display:flex; gap:6px}
+.opt{
+  flex:1; text-align:center; font-size:12.5px; padding:8px 4px;
+  border-radius:9px; background:#0f141d; border:1px solid var(--line); color:var(--muted);
+}
+.opt.pick{background:rgba(124,108,240,.15); border-color:var(--accent); color:var(--text); font-weight:600}
+.empty, .err{color:var(--muted); font-size:13px; text-align:center; padding:30px 10px}
+.err{color:var(--lose)}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>PULSE<span> · </span>2 picks</h1>
+  <p>Los dos partidos de mayor confianza, en vivo desde football-data.org</p>
+</header>
+
+<main id="list"><div class="empty">Cargando partidos…</div></main>
+
+<script>
+const optsHtml = (opts, pickIdx) => opts.map((o,i) =>
+  `<div class="opt ${i===pickIdx?'pick':''}">${o}</div>`
+).join("");
+
+const fmtDate = iso => new Date(iso).toLocaleString("es", {
+  weekday:"short", day:"numeric", month:"short", hour:"2-digit", minute:"2-digit"
+});
+
+async function load(){
+  const list = document.getElementById("list");
+  try{
+    const res = await fetch("/api/fixtures");
+    const data = await res.json();
+    if(data.error) throw new Error(data.error);
+    if(!data.picks || !data.picks.length){
+      list.innerHTML = `<div class="empty">No hay partidos de alta confianza en los próximos 7 días.</div>`;
+      return;
+    }
+    list.innerHTML = data.picks.map(g => `
+      <div class="card">
+        <div class="top">
+          <span class="league">${g.league}</span>
+          <span class="badge">${g.score}% confianza</span>
+        </div>
+        <div class="teams">${g.home}<span class="vs">vs</span>${g.away}</div>
+        <div class="when">${fmtDate(g.utcDate)}</div>
+
+        <div class="market">
+          <div class="mtitle">Resultado · doble oportunidad</div>
+          <div class="opts">${optsHtml(["1X","12","X2"], g.dcPick)}</div>
+        </div>
+
+        <div class="market">
+          <div class="mtitle">Goles de ${g.favoriteTeam}</div>
+          <div class="opts">${optsHtml(["Menos 1.5","Más 1.5"], g.teamGoalsPick)}</div>
+        </div>
+
+        <div class="market">
+          <div class="mtitle">Goles totales del partido</div>
+          <div class="opts">${optsHtml(["Menos 2.5","Más 2.5"], g.totalGoalsPick)}</div>
+        </div>
+
+        <div class="market">
+          <div class="mtitle">Ambos marcan</div>
+          <div class="opts">${optsHtml(["No","Sí"], g.bttsPick)}</div>
+        </div>
+      </div>
+    `).join("");
+  }catch(e){
+    list.innerHTML = `<div class="err">Error cargando datos: ${e.message}</div>`;
+  }
+}
+load();
+</script>
+</body>
+</html>
